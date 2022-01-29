@@ -7,6 +7,19 @@ static void RudeWindowFixer_Error(LPCWSTR text) {
 	exit(EXIT_FAILURE);
 }
 
+static void RudeWindowFixer_TriggerRudeWindowRecalculation(void) {
+	const UINT shellhookMessage = RegisterWindowMessageW(L"SHELLHOOK");
+	if (shellhookMessage == 0)
+		RudeWindowFixer_Error(L"RegisterWindowMessageW(L\"SHELLHOOK\") failed");
+
+	// Broadcast a dummy HSHELL_MONITORCHANGED message. This message will trigger CGlobalRudeWindowManager to recalculate its state.
+	// According to reverse engineering, HSHELL_MONITORCHANGED is the message that is processed in the most direct, straightforward, side-effect-free manner by CGlobalRudeWindowManager.
+	// TODO: this is a "shotgun" approach that broadcasts to all applications for simplicity. This presumably wakes up a ton of processes, which is inefficient. A cleaner approach could be to locate the specific window CGlobalRudeWindowManager is listening on.
+	DWORD recipients = BSM_APPLICATIONS;
+	if (BroadcastSystemMessage(BSF_POSTMESSAGE, &recipients, shellhookMessage, HSHELL_MONITORCHANGED, 0) < 0)
+		RudeWindowFixer_Error(L"BroadcastSystemMessage() failed");
+}
+
 static LRESULT CALLBACK RudeWindowFixer_WindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 	// Once CGlobalRudeWindowManager determines a fullscreen app is in use, CTray::OnRudeWindowStateChange() sends ABN_FULLSCREENAPP 1 message to all appbars.
 	if (uMsg == APPBAR_MESSAGE && wParam == ABN_FULLSCREENAPP && lParam) {
@@ -14,17 +27,8 @@ static LRESULT CALLBACK RudeWindowFixer_WindowProcedure(HWND hWnd, UINT uMsg, WP
 			RudeWindowFixer_Error(L"SetTimer() failed");
 	}
 
-	if (uMsg == WM_TIMER) {
-		const UINT shellhookMessage = RegisterWindowMessageW(L"SHELLHOOK");
-		if (shellhookMessage == 0)
-			RudeWindowFixer_Error(L"RegisterWindowMessageW(L\"SHELLHOOK\") failed");
-
-		// Broadcast a dummy HSHELL_MONITORCHANGED message. This message will trigger CGlobalRudeWindowManager to recalculate its state.
-		// TODO: this is a "shotgun" approach that broadcasts to all applications for simplicity. This presumably wakes up a ton of processes, which is inefficient. A cleaner approach could be to locate the specific window CGlobalRudeWindowManager is listening on.
-		DWORD recipients = BSM_APPLICATIONS;
-		if (BroadcastSystemMessage(BSF_POSTMESSAGE, &recipients, shellhookMessage, HSHELL_MONITORCHANGED, 0) < 0)
-			RudeWindowFixer_Error(L"BroadcastSystemMessage() failed");
-	}
+	if (uMsg == WM_CREATE || uMsg == WM_TIMER)
+		RudeWindowFixer_TriggerRudeWindowRecalculation();
 
 	return DefWindowProcW(hWnd, uMsg, wParam, lParam);
 }
