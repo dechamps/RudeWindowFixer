@@ -1,22 +1,18 @@
 #include <Windows.h>
 
-static const UINT APPBAR_MESSAGE = WM_USER;
+static UINT RudeWindowFixer_shellhookMessage;
 
-static void RudeWindowFixer_Error(LPCWSTR text) {
+static __declspec(noreturn) void RudeWindowFixer_Error(LPCWSTR text) {
 	MessageBoxW(NULL, text, L"RudeWindowFixer error", MB_ICONERROR);
 	exit(EXIT_FAILURE);
 }
 
 static void RudeWindowFixer_TriggerRudeWindowRecalculation(void) {
-	const UINT shellhookMessage = RegisterWindowMessageW(L"SHELLHOOK");
-	if (shellhookMessage == 0)
-		RudeWindowFixer_Error(L"RegisterWindowMessageW(L\"SHELLHOOK\") failed");
-
 	// Broadcast a dummy HSHELL_MONITORCHANGED message. This message will trigger CGlobalRudeWindowManager to recalculate its state.
 	// According to reverse engineering, HSHELL_MONITORCHANGED is the message that is processed in the most direct, straightforward, side-effect-free manner by CGlobalRudeWindowManager.
 	// TODO: this is a "shotgun" approach that broadcasts to all applications for simplicity. This presumably wakes up a ton of processes, which is inefficient. A cleaner approach could be to locate the specific window CGlobalRudeWindowManager is listening on.
 	DWORD recipients = BSM_APPLICATIONS;
-	if (BroadcastSystemMessage(BSF_POSTMESSAGE, &recipients, shellhookMessage, HSHELL_MONITORCHANGED, 0) < 0)
+	if (BroadcastSystemMessage(BSF_POSTMESSAGE, &recipients, RudeWindowFixer_shellhookMessage, HSHELL_MONITORCHANGED, 0) < 0)
 		RudeWindowFixer_Error(L"BroadcastSystemMessage() failed");
 }
 
@@ -25,8 +21,8 @@ static LRESULT CALLBACK RudeWindowFixer_WindowProcedure(HWND hWnd, UINT uMsg, WP
 
 	if (uMsg == WM_TIMER) KillTimer(hWnd, timerId);
 
-	// Once CGlobalRudeWindowManager determines a fullscreen app is in use, CTray::OnRudeWindowStateChange() sends ABN_FULLSCREENAPP 1 message to all appbars.
-	if (uMsg == APPBAR_MESSAGE && wParam == ABN_FULLSCREENAPP && lParam) {
+	if (uMsg == RudeWindowFixer_shellhookMessage) {
+		// This will reset the timer if it's already running, which probably makes the most sense - we only want to trigger recalculation after things have settled.
 		if (SetTimer(hWnd, /*nIDEvent=*/timerId, /*uElapse=*/50, /*lpTimerFunc=*/NULL) == 0)
 			RudeWindowFixer_Error(L"SetTimer() failed");
 	}
@@ -41,6 +37,10 @@ int APIENTRY WinMain(_In_ HINSTANCE hInst, _In_opt_  HINSTANCE hInstPrev, _In_ P
 	UNREFERENCED_PARAMETER(hInstPrev);
 	UNREFERENCED_PARAMETER(cmdline);
 	UNREFERENCED_PARAMETER(cmdshow);
+
+	RudeWindowFixer_shellhookMessage = RegisterWindowMessageW(L"SHELLHOOK");
+	if (RudeWindowFixer_shellhookMessage == 0)
+		RudeWindowFixer_Error(L"RegisterWindowMessageW() failed");
 
 	WNDCLASSEXW windowClass = { 0 };
 	windowClass.cbSize = sizeof(WNDCLASSEX);
@@ -66,12 +66,8 @@ int APIENTRY WinMain(_In_ HINSTANCE hInst, _In_opt_  HINSTANCE hInstPrev, _In_ P
 	if (window == NULL)
 		RudeWindowFixer_Error(L"CreateWindowW() failed");
 
-	APPBARDATA abd;
-	abd.cbSize = sizeof(abd);
-	abd.hWnd = window;
-	abd.uCallbackMessage = APPBAR_MESSAGE;
-	if (!SHAppBarMessage(ABM_NEW, &abd))
-		RudeWindowFixer_Error(L"SHAppBarMessage(ABM_NEW) failed");
+	if (!RegisterShellHookWindow(window))
+		RudeWindowFixer_Error(L"RegisterShellHookWindow() failed");
 
 	for (;;)
 	{
