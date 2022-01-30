@@ -21,9 +21,13 @@ static void RudeWindowFixer_TriggerRudeWindowRecalculation(void) {
 }
 
 static LRESULT CALLBACK RudeWindowFixer_WindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+	const UINT_PTR timerId = 1;
+
+	if (uMsg == WM_TIMER) KillTimer(hWnd, timerId);
+
 	// Once CGlobalRudeWindowManager determines a fullscreen app is in use, CTray::OnRudeWindowStateChange() sends ABN_FULLSCREENAPP 1 message to all appbars.
 	if (uMsg == APPBAR_MESSAGE && wParam == ABN_FULLSCREENAPP && lParam) {
-		if (SetTimer(hWnd, /*nIDEvent=*/1, /*uElapse=*/50, /*lpTimerFunc=*/NULL) == 0)
+		if (SetTimer(hWnd, /*nIDEvent=*/timerId, /*uElapse=*/50, /*lpTimerFunc=*/NULL) == 0)
 			RudeWindowFixer_Error(L"SetTimer() failed");
 	}
 
