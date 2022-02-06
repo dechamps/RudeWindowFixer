@@ -19,13 +19,15 @@ are using a full screen application and hides the taskbar.
 ## Usage
 
 1. Download `RudeWindowFixer.exe` from the [GitHub releases page][].
-1. Run `RudeWindowFixer.exe`.
+2. Run `RudeWindowFixer.exe`.
    - Nothing will happen at first; this is normal. RudeWindowFixer is quietly
      running in the background. You can check in the Task Manager if you want to
      make sure.
-2. That's it!
+3. That's it!
    - You will likely want to make `RudeWindowFixer.exe` [run on startup][] so
      that it persists across reboots.
+4. Upvote this [Microsoft bug report][] to hopefully get Microsoft to prioritize
+   fixing the underlying Windows bug, which is described in detail below.
 
 ## I am still experiencing issues even with RudeWindowFixer
 
@@ -411,6 +413,7 @@ There are no dependencies besides the Windows SDK.
 [hooks]: https://docs.microsoft.com/en-us/windows/win32/winmsg/hooks
 [make changes]: https://devblogs.microsoft.com/oldnewthing/20080116-00/?p=23803
 [`MapWindowPoints()`]: https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-mapwindowpoints
+[Microsoft bug report]: https://aka.ms/AAfmyzk
 [layered window]: https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#layered-windows
 [WindowInvestigator]: https://github.com/dechamps/WindowInvestigator
 [public Microsoft symbols]: https://docs.microsoft.com/en-us/windows-hardware/drivers/debugger/microsoft-public-symbols
