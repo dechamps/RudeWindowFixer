@@ -397,6 +397,7 @@ There are no dependencies besides the Windows SDK.
 
 [activating]: https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#active-window
 [bug report]: https://bugs.eclipse.org/bugs/show_bug.cgi?id=24052
+[eclipse]: https://bugs.eclipse.org/bugs/show_bug.cgi?id=24052
 [Etienne Dechamps]: mailto:etienne@edechamps.fr
 [extended window style]: https://docs.microsoft.com/en-us/windows/win32/winmsg/extended-window-styles
 [file an issue]: https://github.com/dechamps/RudeWindowFixer/issues
