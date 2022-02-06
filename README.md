@@ -387,6 +387,8 @@ bugs that do not involve a shell hook event race condition.
   taskbar always on top issues.
 - This [bug report][eclipse] is the first known public report of what looks like
   similar issues, going all the way back to 2002!
+- The [WindowInvestigator][] toolbox provides useful tools if you want to
+  investigate similar issues yourself.
 
 ## Developer information
 
