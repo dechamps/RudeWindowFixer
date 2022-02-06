@@ -211,10 +211,10 @@ around the same time as `WM_WINDOWPOSCHANGING`. This means that the new rudeness
 state is calculated *at the same time* the new top window is processing the
 `WM_WINDOWPOSCHANGING` message. These two processes will therefore [race][]
 against each other. If the window was quick enough to process the
-`WM_WINDOWPOSCHANGING` in time, the Rude Window Manager will use the final
-dimensions and compute the correct state. Conversely, if the window is too slow
-to process the message, *the Rude Window Manager will operate based on stale
-window dimensions, and potentially compute an incorrect state*.
+`WM_WINDOWPOSCHANGING` message in time, the Rude Window Manager will use the
+final dimensions and compute the correct state. Conversely, if the window is too
+slow to process the message, *the Rude Window Manager will operate based on
+stale window dimensions, and potentially compute an incorrect state*.
 
 Unfortunately, the Rude Window Manager is not notified again when window
 dimensions finally change (unless perhaps it is becoming full screen, but that
