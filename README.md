@@ -115,8 +115,11 @@ Roughly, the rude window manager is implemented as follows:
    each monitor and determine if it should be considered "rude".
 3. In the event a monitor "rudeness" changes, notifications are delivered to
    other components through `CRudeWindowManager`.
-   - Evidently this includes adjusting the taskbar always on top state, though
-     I have not directly observed that code path.
+   - This notably includes the code in charge of the taskbar, through
+     `Explorer!CTray::OnRudeWindowStateChange()`, which calls
+     `Taskbar!TrayUI::RudenessChanged()`, which calls
+     `Taskbar!TrayUI::_ResetZorder()`, which finally sets or unsets the "always
+     on top" property of the taskbar window based on the new state.
 
 Let's focus on step (2).
 
