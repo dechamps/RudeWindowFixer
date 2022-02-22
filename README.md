@@ -288,9 +288,9 @@ Indeed, it is possible for applications to set up windows that are:
 - *Transparent*, using the [layered window][] mechanism (`WS_EX_LAYERED`
   [extended window style][]), combined with transparency effects such as
   `WS_EX_TRANSPARENT` or [`SetLayeredWindowAttributes()`][].
-- *Click-through*, using the `WS_EX_NOACTIVATE` [extended window style][]. This
-  prevents the window from capturing user input, which instead passes through to
-  the window below it.
+- *Click-through*, using the same layered window mechanism. This prevents the
+  window from capturing user input, which instead passes through to the window
+  below it.
 - *Not listed* in window lists such as the taskbar or ALT+TAB, again using
   specific styles.
 
