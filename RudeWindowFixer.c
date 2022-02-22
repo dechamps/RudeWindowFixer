@@ -2,18 +2,50 @@
 
 static UINT RudeWindowFixer_shellhookMessage;
 
+#define HSHELL_UNDOCUMENTED_FULLSCREEN_ENTER 0x35
+#define HSHELL_UNDOCUMENTED_FULLSCREEN_EXIT 0x36
+
 static __declspec(noreturn) void RudeWindowFixer_Error(LPCWSTR text) {
 	MessageBoxW(NULL, text, L"RudeWindowFixer error", MB_ICONERROR);
 	exit(EXIT_FAILURE);
 }
 
-static void RudeWindowFixer_TriggerRudeWindowRecalculation(void) {
-	// Broadcast a dummy HSHELL_MONITORCHANGED message. This message will trigger CGlobalRudeWindowManager to recalculate its state.
-	// According to reverse engineering, HSHELL_MONITORCHANGED is the message that is processed in the most direct, straightforward, side-effect-free manner by CGlobalRudeWindowManager.
-	// TODO: this is a "shotgun" approach that broadcasts to all applications for simplicity. This presumably wakes up a ton of processes, which is inefficient. A cleaner approach could be to locate the specific window CGlobalRudeWindowManager is listening on.
+// TODO: this is a "shotgun" approach that broadcasts to all applications for simplicity. This presumably wakes up a ton of processes, which is inefficient. A cleaner approach could be to locate the specific window CGlobalRudeWindowManager is listening on.
+static void RudeWindowFixer_BroadcastShellHookMessage(WPARAM wParam, LPARAM lParam) {
 	DWORD recipients = BSM_APPLICATIONS;
-	if (BroadcastSystemMessage(BSF_POSTMESSAGE, &recipients, RudeWindowFixer_shellhookMessage, HSHELL_MONITORCHANGED, 0) < 0)
+	if (BroadcastSystemMessage(BSF_POSTMESSAGE | BSF_IGNORECURRENTTASK, &recipients, RudeWindowFixer_shellhookMessage, wParam, lParam) < 0)
 		RudeWindowFixer_Error(L"BroadcastSystemMessage() failed");
+}
+
+static BOOL CALLBACK RudeWindowFixer_AdjustWindows_EnumWindowsProc(_In_ HWND window, _In_ LPARAM lParam) {
+	UNREFERENCED_PARAMETER(lParam);
+
+	if (!IsWindowVisible(window)) return TRUE;
+
+	const wchar_t* const nonRudeProp = L"NonRudeHWND";
+
+	const LONG_PTR extendedWindowStyles = GetWindowLongPtrW(window, GWL_EXSTYLE);
+	if (!(
+		// Some sneaky full screen windows (e.g. NVIDIA GeForce Overlay) have WS_EX_LAYERED | WS_EX_NOACTIVATE.
+		// Others (e.g. NVIDIA GeForce Overlay DT) have WS_EX_LAYERED | WS_EX_TRANSPARENT.
+		// These criteria are probably not foolproof, but it's a start.
+		(extendedWindowStyles & WS_EX_LAYERED) && ((extendedWindowStyles & WS_EX_TRANSPARENT) || (extendedWindowStyles & WS_EX_NOACTIVATE)) &&
+		GetPropW(window, nonRudeProp) == NULL
+		)) return TRUE;
+
+	const wchar_t* const propComment = L"NonRudeHWND was set by https://github.com/dechamps/RudeWindowFixer";
+	SetPropW(window, propComment, INVALID_HANDLE_VALUE);
+	SetPropW(window, nonRudeProp, INVALID_HANDLE_VALUE);
+
+	// Just in case we set the property too late, also tell the Rude Window Manager to remove the window from its set of full screen windows.
+	RudeWindowFixer_BroadcastShellHookMessage(HSHELL_UNDOCUMENTED_FULLSCREEN_EXIT, (LPARAM)window);
+
+	return TRUE;
+}
+
+static void RudeWindowFixer_AdjustWindows(void) {
+	if (EnumWindows(RudeWindowFixer_AdjustWindows_EnumWindowsProc, 0) == 0)
+		RudeWindowFixer_Error(L"EnumWindows() failed");
 }
 
 static LRESULT CALLBACK RudeWindowFixer_WindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
@@ -27,8 +59,17 @@ static LRESULT CALLBACK RudeWindowFixer_WindowProcedure(HWND hWnd, UINT uMsg, WP
 			RudeWindowFixer_Error(L"SetTimer() failed");
 	}
 
-	if (uMsg == WM_CREATE || uMsg == WM_TIMER)
-		RudeWindowFixer_TriggerRudeWindowRecalculation();
+	if (uMsg == WM_CREATE || uMsg == WM_TIMER) {
+		// Note: we always go through and check *all* visible windows every time.
+		// An alternative would be to listen for HSHELL_UNDOCUMENTED_FULLSCREEN_ENTER and only check the window that just entered full screen,
+		// but that won't work with windows that become transparent *after* they become full screen (e.g. NVIDIA GeForce Overlay DT)
+		RudeWindowFixer_AdjustWindows();
+
+		// Broadcast a dummy HSHELL_MONITORCHANGED message. This message will trigger CGlobalRudeWindowManager to recalculate its state.
+		// According to reverse engineering, HSHELL_MONITORCHANGED is the message that is processed in the most direct, straightforward, side-effect-free manner by CGlobalRudeWindowManager.
+		// TODO: if AdjustWindows() already sent a full screen exit message, then this is redundant.
+		RudeWindowFixer_BroadcastShellHookMessage(HSHELL_MONITORCHANGED, 0);
+	}
 
 	return DefWindowProcW(hWnd, uMsg, wParam, lParam);
 }

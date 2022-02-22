@@ -9,10 +9,10 @@ Ever felt frustrated by this?
 
 ![Taskbar bug screencap](taskbarbug.gif)
 
-**RudeWindowFixer is a small program that gets rid of at least one known
-"Windows taskbar not always on top" bug.**
+**RudeWindowFixer is a small program that gets rid of known "Windows taskbar not
+always on top" bugs.**
 
-Specifically, it works around a proven bug in the internal Windows taskbar code
+Specifically, it works around proven bugs in the internal Windows taskbar code
 where, under very specific circumstances, Windows mistakenly believes that you
 are using a full screen application and hides the taskbar.
 
@@ -29,13 +29,13 @@ are using a full screen application and hides the taskbar.
 4. Upvote this [Microsoft bug report][] to hopefully get Microsoft to prioritize
    fixing the underlying Windows bug, which is described in detail below.
 
-## I am still experiencing issues even with RudeWindowFixer
+## Limitations
 
-RudeWindowFixer attempts to work around *one* known taskbar always-on-top bug
-(see next section for details). Unfortunately, the investigation revealed that
-the relevant Windows code paths are somewhat brittle and might be prone to
-variations of that bug (e.g. different triggers or problematic window state)
-that RudeWindowFixer might not be able to detect and fix.
+RudeWindowFixer does not claim to fix *all* possible taskbar always-on-top bugs.
+Sadly, reverse engineering efforts (see below) revealed that the relevant
+Windows code paths are somewhat brittle and might be prone to variations on
+these problems (e.g. different triggers or problematic window state) that
+RudeWindowFixer might not be able to detect and fix.
 
 Also note that all investigation and testing was done on Windows 11 21H2
 22000.434; other Windows versions might behave differently.
@@ -45,7 +45,14 @@ not consistently, do feel free to [file an issue][] - it might be possible to
 [instrument your system][WindowInvestigator] to gather detailed data about your
 problem, especially if you can reliably trigger it.
 
-## The bug in detail
+It's also theoretically possible that RudeWindowFixer could go overboard and
+make the taskbar show up in cases where it shouldn't - namely, on top of full
+screen applications (video players, games). This is unlikely to happen in
+practice. If you've seen it happen, do [file an issue][] and make sure to
+mention the name of the full screen application the taskbar is being shown on
+top of.
+
+## The problems in detail
 
 _**Disclaimer:** The following information was gathered through careful
 instrumentation of various window management facilities as well as [reverse
@@ -57,25 +64,36 @@ details below are exactly correct. This information applies to Windows 11 21H2
 
 ### TL;DR
 
-Here's a quick overview of one way this Windows bug can surface:
+There are two known scenarios in which the taskbar can accidentally lose its
+"always on top" status. The following background information is required to
+understand both:
 
 - The taskbar "always on top" window property is controlled by a piece of
   internal Windows code called the *Rude Window Manager*.
 - The Rude Window Manager will only make the taskbar "always on top" on a given
-  monitor if, among all the windows located on that monitor, the top
-  (foreground) window is not a full screen window.
+  monitor if, among the windows located on that monitor, the top (foreground)
+  window is not a full screen window.
+- Some applications create *transparent* full screen windows that are
+  essentially invisible, but still count as full screen windows as far as the
+  Rude Window Manager is concerned.
+
+The first failure mode is fairly simple: it is triggered by the presence of an
+*always on top* transparent full screen window. This essentially confuses the
+Rude Window Manager, resulting in the taskbar "always on top" property being
+dropped.
+
+The second failure mode is more subtle and harder to trigger, but does not
+require the transparent full screen window to be always on top:
+
 - A minimized window is not "located on" any monitor and is therefore never seen
   as the "top" window by the Rude Window Manager.
 - When a minimized window is activated, a race condition can occur wherein the
   Rude Window Manager still sees the window as minimized and therefore does not
   treat it as the new "top" window.
-- If the next window located on that monitor happens to be a full screen window,
-  the Rude Window Manager will wrongly conclude that a full screen window is on
-  top, and wrongly drop the taskbar "always on top" property.
-- This can happen even when there is no apparent full screen window, because
-  some applications create transparent "click-through" full screen windows that
-  are essentially invisible, but can still interfere with the Rude Window
-  Manager.
+- If the next window located on that monitor happens to be a (possibly
+  transparent) full screen window, the Rude Window Manager will wrongly conclude
+  that a full screen window is on top, and wrongly drop the taskbar "always on
+  top" property.
 
 The rest of this section go into each of these points in more detail.
 
@@ -87,17 +105,16 @@ More specifically, the taskbar window (`Shell_TrayWnd` window class, part of
 
 However, there is a case where Windows will drop the "always on top" property
 and will put the taskbar behind all other windows. This happens when Windows
-believes the top (foreground) window is a full screen application. This is to
-prevent the taskbar from obscuring the full screen application.
+believes the user is interacting with a full screen application. This prevents
+the taskbar from obscuring the full screen application.
 
 ### The Rude Window Manager
 
 In internal Windows code, this full screen detection logic is implemented in an
 internal class called the *rude window manager*
 (`twinui!CGlobalRudeWindowManager`, also running in `explorer.exe`). Internally,
-the code uses the term *rude window* to refer to a full screen window, and to a
-*rude monitor* to refer to a monitor on which the top window is a rude (full
-screen) window. RudeWindowFixer is named after this terminology.
+the code uses the term *rude monitor* to refer to a monitor on which the top
+window is a full screen window. RudeWindowFixer is named after this terminology.
 
 (If you are lucky enough to have access to the Windows source, you will find
 this code in `shell\twinui\rudewindowmanager\lib\globalrudewindowmanager.cpp`.)
@@ -107,12 +124,12 @@ Roughly, the rude window manager is implemented as follows:
 1. Listen for specific window management events. Most of these events come from
    [shell hook messages][], which are generated by the kernel (`win32k`). For
    the purpose of this discussion, we are mostly interested in:
-     - Window activation events (`HSHELL_WINDOWACTIVATED` and
-       `HSHELL_RUDEAPPACTIVATED` messages - note the differences between the two
-       aren't clear, and the rude window manager treats them the same).
      - Windows entering or exiting full screen status. These are codified
        using undocumented `wParam` values `0x35` and `0x36`, respectively.
        These appear to be generated based on window dimension changes.
+     - Window activation events (`HSHELL_WINDOWACTIVATED` and
+       `HSHELL_RUDEAPPACTIVATED` messages - note the differences between the two
+       aren't clear, and the rude window manager treats them the same).
 2. If one of these events occur,
    `twinui!CGlobalRudeWindowManager::RecalculateRudeWindowState()` will look at
    each monitor and determine if it should be considered "rude".
@@ -156,9 +173,61 @@ exit" (`0x36`) shell hook message.
 If the top window on a given monitor is found in the set of full screen windows,
 then the monitor is considered *rude*.
 
+### Transparent full screen windows
+
+Now, at this point, if you are not using any full screen applications (games,
+video players), you might wonder how this pertains to your case in any way.
+
+Here's how: you might actually be staring at a full screen window right now. You
+just can't *see* it!
+
+Indeed, it is possible for applications to set up windows that are:
+
+- *Transparent*, using the [layered window][] mechanism (`WS_EX_LAYERED`
+  [extended window style][]), combined with transparency effects such as
+  `WS_EX_TRANSPARENT` or [`SetLayeredWindowAttributes()`][].
+- *Click-through*, using the same layered window mechanism. This prevents the
+  window from capturing user input, which instead passes through to the window
+  below it.
+- *Not listed* in window lists such as the taskbar or ALT+TAB, again using
+  specific styles.
+
+If a full screen window does all of the above, then it *de facto* becomes
+essentially invisible to the user; it's as if the window isn't there. This
+basically means you can have full screen windows on your monitor without
+realizing it.
+
+Consider this: these sneaky full screen windows might be invisible to the user,
+but *they are definitely visible to the Rude Window Manager!* More specifically,
+the window will still be added to the Rude Window Manager's set of full screen
+windows.
+
+Now, if that transparent full screen window happens to also be "always on top"
+(i.e. it has the `WS_EX_TOPMOST` extended window style), then it's game over
+already: the Rude Window Manager will always see that window as the top window,
+and since it's in its full screen window set, the monitor will be considered
+rude. As a result, the taskbar loses its always on top status for as long as the
+situation persists.
+
+You can spot these transparent full screen windows using specialized tools such
+as [GuiPropView][] or [WindowInvestigator][] WindowMonitor. A notable example
+comes from the [GeForce Experience][] overlay, which displays such a window when
+displaying information on some part of the screen; e.g. a corner notification,
+or performance statistics. [WindowInvestigator][] also provides a
+TransparentFullscreenWindow tool that simulates a transparent full screen
+window.
+
+![GeForce experience overlay DT window properties](geforce-experience-overlay-dt.png)
+
+This is one relatively simple scenario where the taskbar always on top state can
+be messed up. However, problems can still occur even if the transparent full
+screen window is *not* always on top, and is not even the current top window.
+Clearly, there's at least one other failure mode we're still missing. This is
+where things get more complicated.
+
 ### Asking for trouble: rudeness state desynchronization
 
-The fundamental problem with the way `CGlobalRudeWindowManager` works is that
+One fundamental problem with the way `CGlobalRudeWindowManager` works is that
 it looks at a wide set of window properties, *but it is not necessarily notified
 when some of these properties change*. Indeed the rude window manager only
 listens to a fairly narrow set of events (mostly window activation events). This
@@ -182,9 +251,9 @@ Consider the following sequence of events:
 3. The dimensions of the window that was just activated change.
 
 A change to window dimensions is not an event `CGlobalRudeWindowManager` reacts
-to. (The code suggests it might be notified if the window is becoming full
-screen - but as we'll see, that won't help with this particular bug.) This can
-lead to rudeness state getting out of sync.
+to. (It will be notified if the window is becoming full screen - but as we'll
+see, that won't help with this particular bug.) This can lead to rudeness state
+getting out of sync.
 
 ### A race condition: activating a minimized window
 
@@ -273,85 +342,64 @@ window *and the next window in the Z-order is a full screen window*. In other
 words, when switching *directly* from a full screen window to an initially
 minimized window.
 
-### The last piece of the puzzle: sneaky full screen windows
+### Switching from a transparent full screen window
 
-Now, at this point, if you are not using any full screen applications (games,
-video players), you might think this investigation does not apply to you and is
-a gigantic waste of time.
+Now, you might object that you're not actually using any full screen
+applications. Even if you are, it's actually pretty hard to switch *directly*
+from a full screen window to a minimized window. You could do it from the
+taskbar, but then you'd need to *activate* the taskbar first, since it's not
+shown on top of full screen applications - but then you're not switching
+directly from the full screen window anymore. You could also do it using
+ALT+TAB, but that's also indirect since you're going through the ALT+TAB window
+itself. (The ALT+TAB window is a bit special - it is a full screen window, but
+it's not treated as such by the Rude Window Manager, because it has a magic
+`"NonRudeHWND"` [window property][] that the Rude Window Manager recognizes.)
 
-In fact, even if you are using such applications, you might reasonably object
-that it's actually pretty hard to switch *directly* from a full screen window to
-a minimized window. You could do it from the taskbar, but then you'd need to
-*activate* the taskbar first, since it's not shown on top of full screen
-applications - but then you're not switching directly from the full screen
-window anymore. You could also do it using ALT+TAB, but that's also indirect
-since you're going through the ALT+TAB window itself. (The ALT+TAB window is
-a bit special - it is a full screen window, but it's not treated as such by the
-Rude Window Manager, because it has a magic `"NonRudeHWND"` [window property][]
-that the Rude Window Manager recognizes.)
+However, these objections imply *real* full screen applications. Remember the
+*transparent* full screen windows that we mentioned previously? If the top
+window happens to be a transparent full screen window, then you might, in fact,
+unknowingly switch directly *from* that window to a minimized window by clicking
+its icon on the taskbar!
 
-Clearly we're still missing something here. If there's no full screen window
-to switch from, then how can this bug be triggered?
+Because transparent full screen windows usually cannot be activated directly by
+the user, they will naturally tend to fall to the bottom of the window Z-order
+(unless they are "always on top" of course, but we've already discussed the case
+of always on top transparent full screen windows). The Rude Window Manager will
+typically not see them as top (foreground) windows. There is one notable
+exception, though: if all windows are minimized, i.e. the user is looking at the
+desktop, then a transparent fullscreen window will become the top window, *and
+the Rude Window Monitor will wrongly conclude the monitor is rude*. At this
+point *the taskbar has already lost its "always on top" state*, but that is not
+yet apparent to the user because there is no opaque window sitting atop the
+taskbar.
 
-The answer is: there *is* a full screen window. You just can't see it!
-
-Indeed, it is possible for applications to set up windows that are:
-
-- *Transparent*, using the [layered window][] mechanism (`WS_EX_LAYERED`
-  [extended window style][]), combined with transparency effects such as
-  `WS_EX_TRANSPARENT` or [`SetLayeredWindowAttributes()`][].
-- *Click-through*, using the same layered window mechanism. This prevents the
-  window from capturing user input, which instead passes through to the window
-  below it.
-- *Not listed* in window lists such as the taskbar or ALT+TAB, again using
-  specific styles.
-
-If a full screen window does all of the above, then it *de facto* becomes
-essentially invisible to the user; it's as if the window isn't there. This
-basically means you can have full screen windows on your monitor without
-realizing it.
-
-You can spot these "sneaky" full screen windows using specialized tools such as
-[GuiPropView][] or [WindowInvestigator][] WindowMonitor. A notable example of a
-sneaky full screen window is the [GeForce Experience][] overlay window, which
-exists as long as the "overlay" feature is enabled, even when not actively using
-the overlay. [WindowInvestigator][] also provides a TransparentFullscreenWindow
-tool that simulates a sneaky full screen window.
+A notable example of a non-always-on-top transparent full screen window that
+can cause this problem is one of the windows created by the [GeForce
+Experience][] overlay. Yes, GeForce Experience again - but note this is not the
+same window as the one we previously discussed. This one is not "always on top";
+however, it *always exists* as long as the overlay feature is enabled, even when
+it's not being used.
 
 ![GeForce experience overlay window properties](geforce-experience-overlay.png)
 
-Here's the thing: these sneaky full screen windows might be invisible to the
-user, but *they are definitely visible to the Rude Window Manager!* More
-specifically, the window will still be added to the Rude Window Manager's set of
-full screen windows. 
-
-Because these windows cannot be activated directly by the user, they will
-naturally tend to fall to the bottom of the window Z-order. The Rude Window
-Manager will typically not see them as top (foreground) windows. There is one
-notable exception, though: if all windows are minimized, i.e. the user is
-looking at the desktop, then a sneaky fullscreen window will become the top
-window, *and the Rude Window Monitor will wrongly conclude the monitor is rude*.
-At this point *the taskbar has already lost its "always on top" state*, but that
-is not yet apparent to the user because there is no opaque window sitting atop
-the taskbar.
-
-If the Rude Window Manager finds itself in this state, and the user activates a
-minimized window by clicking on its icon in the taskbar, then the race we
-described previously will take place, the Rude Window Manager can miss the new
-top window, and fail to switch the monitor to the non-rude state.
+If the current top window is such a transparent full screen window, and the user
+activates a minimized window by clicking on its icon in the taskbar, then the
+race we described previously will take place, the Rude Window Manager can miss
+the new top window, and fail to switch the monitor to the non-rude state.
 
 ### Putting it all together
 
 We now have all the information we need to reconstruct the sequence of events
-that trigger the bug:
+that trigger the second failure mode we are interested in, in addition to the
+simpler "always-on-top transparent full screen window" failure mode:
 
 1. All windows are minimized and the user is looking at the desktop.
 2. Unbeknownst to the user, they are also looking at a transparent clickthrough
    full screen window, such as the GeForce experience overlay window.
 3. The last run of `CGlobalRudeWindowManager::RecalculateRudeWindowState()`
-   concluded that the sneaky full screen window is on top, and the monitor is
-   therefore rude. The taskbar does not have the "always on top" property, but
-   the user is unlikely to notice since they don't have any windows open.
+   concluded that the transparent full screen window is on top, and the monitor
+   is therefore rude. The taskbar does not have the "always on top" property,
+   but the user is unlikely to notice since they don't have any windows open.
 4. The user activates a minimized window by clicking its taskbar icon.
 5. `CGlobalRudeWindowManager::RecalculateRudeWindowState()` runs. Unfortunately,
    the activated window dimensions have not been updated yet. The window is
@@ -370,17 +418,34 @@ that trigger the bug:
 
 ## How RudeWindowFixer works
 
-The logic in RudeWindowFixer is quite trivial. RudeWindowFixer listens to the
-same [shell hook messages][] as the Rude Window Manager. When an event is
-received, RudeWindowFixer sets a timer for a fixed amount of time (currently 50
-milliseconds). When the timer elapses, RudeWindowFixer forces the Rude Window
-Manager to run again by sending a message that it is known to listen for. That's
-it.
+RudeWindowFixer listens to the same [shell hook messages][] as the Rude Window
+Manager. When an event is received, RudeWindowFixer sets a timer for a fixed
+amount of time (currently 50 milliseconds). When the timer elapses,
+RudeWindowFixer does two things:
 
-The idea is that 50 ms should be more than enough time for the activated window
-to finish processing the `WM_WINDOWPOSCHANGING` message. (For example, Firefox
-takes less than ~20 ms.) Therefore, by the time the Rude Window Manager is
-forced to run a second time, the window should have settled unto its final
+1. It goes through every [visible][] window, looking for transparent windows.
+   - Currently, a window is considered transparent if it has the `WS_EX_LAYERED`
+     as well as `WS_EX_TRANSPARENT` or `WS_EX_NOACTIVATE` [extended window
+     styles][extended window style].
+   - If a transparent window is found, RudeWindowFixer will ensure it is *not*
+     included in the Rude Windows Manager's set of full screen windows.
+     - It does this by adding a "magic" undocumented [window property][]
+       (`"NonRudeHWND"`) that the Rude Window Manager is known to look for.
+     - It also sends a "full screen exit" message to the Rude Window Manager
+       just in case the window was already in the set.
+2. It forces the Rude Window Manager to recalculate rudeness state again by
+   sending it a dummy message.
+
+The above approach tackles the problem from two angles at the same time:
+RudeWindowFixer tries to ensure transparent windows are never treated as full
+screen windows, while attempting to mitigate `WM_WINDOWPOSCHANGING` race
+conditions by "poking" the Rude Window Manager again after some amount of time
+has elapsed.
+
+The 50 ms timer interval should be more than enough time for the activated
+window to finish processing the `WM_WINDOWPOSCHANGING` message. (For example,
+Firefox takes less than ~20 ms.) Therefore, by the time the Rude Window Manager
+is forced to run a second time, the window should have settled unto its final
 position, and the Rude Window Manager should therefore be able to determine the
 correct top window.
 
@@ -391,12 +456,18 @@ message has been processed, regardless of how long that takes. This might be
 technically feasible using [hooks][], but such an approach would be complicated
 and would present higher potential for harmful side effects.
 
+The delayed operation is also useful when dealing with windows that are *not*
+created as transparent, but become transparent shortly afterwards. This is the
+case for the GeForce Experience "DT" window, for example.
+
 In theory, RudeWindowFixer can mitigate any issue where the Rude Window Manager
-is racing against any shell hook event, not necessarily the precise sequence of
-events described above. Therefore, RudeWindowFixer could help even if your
-situation does not exactly match the one RudeWindowFixer was designed to
+is wrongly treating a transparent window as full screen, and/or races against
+a shell hook event, including issues that do not necessarily follow the precise
+sequence of events described above. Therefore, RudeWindowFixer could help even
+if your situation does not exactly match the one RudeWindowFixer was designed to
 address. However, RudeWindowFixer is unlikely to help with Rude Window Manager
-bugs that do not involve a shell hook event race condition.
+bugs that do not involve transparent windows (as defined above) nor shell hook
+message race conditions.
 
 ## See also
 
@@ -430,6 +501,7 @@ There are no dependencies besides the Windows SDK.
 [GitHub]: https://github.com/dechamps/RudeWindowFixer
 [GitHub releases page]: https://github.com/dechamps/RudeWindowFixer/releases
 [hooks]: https://docs.microsoft.com/en-us/windows/win32/winmsg/hooks
+[issue2]: https://github.com/dechamps/RudeWindowFixer/issues/2
 [make changes]: https://devblogs.microsoft.com/oldnewthing/20080116-00/?p=23803
 [`MapWindowPoints()`]: https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-mapwindowpoints
 [Microsoft bug report]: https://aka.ms/AAfmyzk
@@ -442,6 +514,7 @@ There are no dependencies besides the Windows SDK.
 [shell hook messages]: https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-registershellhookwindow
 [superuser1]: https://superuser.com/questions/1163969/windows-10-taskbar-is-not-always-on-top
 [superuser2]: https://superuser.com/questions/483453/windows-7-task-bar-stuck-in-hiding-how-to-fix
+[visible]: https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-iswindowvisible
 [window style]: https://docs.microsoft.com/en-us/windows/win32/winmsg/window-styles
 [window property]: https://docs.microsoft.com/en-us/windows/win32/winmsg/window-properties
 [run on startup]: https://www.howtogeek.com/228467/how-to-make-a-program-run-at-startup-on-any-computer/
