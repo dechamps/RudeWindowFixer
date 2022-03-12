@@ -94,6 +94,9 @@ cause of the issue.
     - Along with the trace, it's a good idea to describe what you were doing
       when the problem occurred, in as much detail as possible.
 
+**Note:** tracing will stop if you log out or restart Windows. You will need to
+repeat this procedure to get it started again.
+
 [analysed]: https://docs.microsoft.com/en-us/windows-hardware/test/wpt/windows-performance-analyzer
 [record]: https://docs.microsoft.com/en-us/windows-hardware/test/wpt/windows-performance-recorder
 [RudeWindowFixer profile]: https://raw.githubusercontent.com/dechamps/RudeWindowFixer/master/RudeWindowFixer.wprp
