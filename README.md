@@ -42,8 +42,8 @@ Also note that all investigation and testing was done on Windows 11 21H2
 
 If you notice that RudeWindowFixer does not fix the problem for you, or at least
 not consistently, do feel free to [file an issue][] - it might be possible to
-[instrument your system][WindowInvestigator] to gather detailed data about your
-problem, especially if you can reliably trigger it.
+[instrument your system](TRACING.md) to gather detailed data about your problem,
+especially if you can reliably trigger it.
 
 It's also theoretically possible that RudeWindowFixer could go overboard and
 make the taskbar show up in cases where it shouldn't - namely, on top of full
