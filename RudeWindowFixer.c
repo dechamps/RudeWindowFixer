@@ -1,4 +1,7 @@
 #include <Windows.h>
+#include <TraceLoggingProvider.h>
+
+TRACELOGGING_DEFINE_PROVIDER(RudeWindowFixer_traceloggingProvider, "RudeWindowFixer", (0xf7a4605a, 0x5eba, 0x46a2, 0x8a, 0x75, 0xd7, 0xe2, 0xfe, 0xcc, 0x8d, 0x62));
 
 static UINT RudeWindowFixer_shellhookMessage;
 
@@ -6,6 +9,7 @@ static UINT RudeWindowFixer_shellhookMessage;
 #define HSHELL_UNDOCUMENTED_FULLSCREEN_EXIT 0x36
 
 static __declspec(noreturn) void RudeWindowFixer_Error(LPCWSTR text) {
+	TraceLoggingWrite(RudeWindowFixer_traceloggingProvider, "Error", TraceLoggingWideString(text, "ErrorMessage"));
 	MessageBoxW(NULL, text, L"RudeWindowFixer error", MB_ICONERROR);
 	exit(EXIT_FAILURE);
 }
@@ -33,6 +37,8 @@ static BOOL CALLBACK RudeWindowFixer_AdjustWindows_EnumWindowsProc(_In_ HWND win
 		GetPropW(window, nonRudeProp) == NULL
 		)) return TRUE;
 
+	TraceLoggingWrite(RudeWindowFixer_traceloggingProvider, "SettingNonRudeHWND", TraceLoggingPointer(window, "HWND"), TraceLoggingIntPtr(extendedWindowStyles, "ExtendedWindowStyles"));
+
 	const wchar_t* const propComment = L"NonRudeHWND was set by https://github.com/dechamps/RudeWindowFixer";
 	SetPropW(window, propComment, INVALID_HANDLE_VALUE);
 	SetPropW(window, nonRudeProp, INVALID_HANDLE_VALUE);
@@ -49,6 +55,8 @@ static void RudeWindowFixer_AdjustWindows(void) {
 }
 
 static LRESULT CALLBACK RudeWindowFixer_WindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+	TraceLoggingWrite(RudeWindowFixer_traceloggingProvider, "ReceivedMessage", TraceLoggingHexUInt32(uMsg, "uMsg"), TraceLoggingHexUInt64(wParam, "wParam"), TraceLoggingHexUInt64(lParam, "lParam"));
+
 	const UINT_PTR timerId = 1;
 
 	if (uMsg == WM_TIMER) KillTimer(hWnd, timerId);
@@ -71,6 +79,8 @@ static LRESULT CALLBACK RudeWindowFixer_WindowProcedure(HWND hWnd, UINT uMsg, WP
 		RudeWindowFixer_BroadcastShellHookMessage(HSHELL_MONITORCHANGED, 0);
 	}
 
+	TraceLoggingWrite(RudeWindowFixer_traceloggingProvider, "Done");
+
 	return DefWindowProcW(hWnd, uMsg, wParam, lParam);
 }
 
@@ -79,9 +89,13 @@ int APIENTRY WinMain(_In_ HINSTANCE hInst, _In_opt_  HINSTANCE hInstPrev, _In_ P
 	UNREFERENCED_PARAMETER(cmdline);
 	UNREFERENCED_PARAMETER(cmdshow);
 
+	TraceLoggingRegister(RudeWindowFixer_traceloggingProvider);
+
 	RudeWindowFixer_shellhookMessage = RegisterWindowMessageW(L"SHELLHOOK");
 	if (RudeWindowFixer_shellhookMessage == 0)
 		RudeWindowFixer_Error(L"RegisterWindowMessageW() failed");
+
+	TraceLoggingWrite(RudeWindowFixer_traceloggingProvider, "Starting", TraceLoggingHexUInt32(RudeWindowFixer_shellhookMessage, "ShellhookMessage"));
 
 	WNDCLASSEXW windowClass = { 0 };
 	windowClass.cbSize = sizeof(WNDCLASSEX);

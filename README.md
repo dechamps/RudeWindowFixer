@@ -469,6 +469,17 @@ address. However, RudeWindowFixer is unlikely to help with Rude Window Manager
 bugs that do not involve transparent windows (as defined above) nor shell hook
 message race conditions.
 
+## Tracing
+
+RudeWindowFixer logs every event through an [Event Tracing for Windows (ETW)][]
+provider. This can be used to troubleshoot RudeWindowFixer operation.
+
+The provider GUID is `F7A4605A-5EBA-46A2-8A75-D7E2FECC8D62`. You can enter that
+GUID directly in [TraceView][] for real time logging, or you can load the
+included [`RudeWindowFixer.wprp`][] [recording profile][] into the [Windows
+Performance Recorder (WPR)][] for a more thorough analysis. The Provider Name
+will appear as `RudeWindowFixer`.
+
 ## See also
 
 - This [SuperUser question][superuser1] and [this one][superuser2] discuss
@@ -492,6 +503,7 @@ There are no dependencies besides the Windows SDK.
 [eclipse]: https://bugs.eclipse.org/bugs/show_bug.cgi?id=24052
 [Etienne Dechamps]: mailto:etienne@edechamps.fr
 [extended window style]: https://docs.microsoft.com/en-us/windows/win32/winmsg/extended-window-styles
+[Event Tracing for Windows (ETW)]: https://docs.microsoft.com/en-us/windows/win32/etw/about-event-tracing
 [file an issue]: https://github.com/dechamps/RudeWindowFixer/issues
 [`GetClientRect()`]: https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getclientrect
 [`GetWindowRect()`]: https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getwindowrect
@@ -509,7 +521,10 @@ There are no dependencies besides the Windows SDK.
 [WindowInvestigator]: https://github.com/dechamps/WindowInvestigator
 [public Microsoft symbols]: https://docs.microsoft.com/en-us/windows-hardware/drivers/debugger/microsoft-public-symbols
 [race]: https://en.wikipedia.org/wiki/Race_condition
+[recording profile]: https://docs.microsoft.com/en-us/windows-hardware/test/wpt/authoring-recording-profiles
 [reverse engineering]: https://en.wikipedia.org/wiki/Reverse_engineering#Binary_software
+[TraceView]: https://docs.microsoft.com/en-us/windows-hardware/drivers/devtest/traceview
+[`RudeWindowFixer.wprp`]: RudeWindowFixer.wprp
 [`SetLayeredWindowAttributes()`]: https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setlayeredwindowattributes
 [shell hook messages]: https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-registershellhookwindow
 [superuser1]: https://superuser.com/questions/1163969/windows-10-taskbar-is-not-always-on-top
@@ -519,5 +534,6 @@ There are no dependencies besides the Windows SDK.
 [window property]: https://docs.microsoft.com/en-us/windows/win32/winmsg/window-properties
 [run on startup]: https://www.howtogeek.com/228467/how-to-make-a-program-run-at-startup-on-any-computer/
 [Z-order]: https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#z-order
+[Windows Performance Recorder (WPR)]: https://docs.microsoft.com/en-us/windows-hardware/test/wpt/windows-performance-recorder
 [`WM_WINDOWPOSCHANGING`]: https://docs.microsoft.com/en-us/windows/win32/winmsg/wm-windowposchanging
 [WindowInvestigator]: https://github.com/dechamps/WindowInvestigator

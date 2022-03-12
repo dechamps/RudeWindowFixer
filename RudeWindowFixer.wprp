@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WindowsPerformanceRecorder Version="1.0">
+	<Profiles>
+		<EventCollector Id="EventCollector_RudeWindowFixer" Name="RudeWindowFixer" />
+		<Profile Id="RudeWindowFixer.Verbose.File" Name="RudeWindowFixer" Description="RudeWindowFixer" LoggingMode="File" DetailLevel="Verbose">
+			<Collectors>
+				<EventCollectorId Value="EventCollector_RudeWindowFixer">
+					<EventProviders>
+						<EventProvider Id="EventProvider_RudeWindowFixer" Name="F7A4605A-5EBA-46A2-8A75-D7E2FECC8D62" />
+					</EventProviders>
+				</EventCollectorId>
+			</Collectors>
+		</Profile>
+		<Profile Id="RudeWindowFixer.Verbose.Memory" Base="RudeWindowFixer.Verbose.File" LoggingMode="Memory" Name="RudeWindowFixer" Description="RudeWindowFixer" DetailLevel="Verbose" />
+	</Profiles>
+</WindowsPerformanceRecorder>
