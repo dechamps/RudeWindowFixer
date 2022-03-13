@@ -23,37 +23,40 @@ cause of the issue.
 3. Make sure you have the latest [release][RudeWindowFixerReleases] of
    RudeWindowFixer. Be prepared to start it, but do not do it yet.
 
-5. Open the [Windows Performance Recorder][record]: hit Win+R (Run) and enter
-   `wprui`.
-
-6. If not done previously, add the following 3 profiles (use "Save As..." to
-   download them):
+4. Download the following 3 profiles (use "Save As..."):
    - [RudeWindowFixer profile][]
    - [WindowInvestigator profile][]
    - [WindowManagementLogging profile][]
 
-7. Make sure the only selected profiles are "First level triage" and the 3
-   aforementioned profiles.
-
-8. On the right hand side, make sure "Performance Scenario" is set to "General",
-   "Detail Level" is set to "Verbose" and "Logging mode" is set to "Memory".
-
-9. At this point the WPR window should look like this:
-
-   ![wpr](wpr.png)
-
-10. Close as many windows as you can (aside from the windows used in this
+5. Close as many windows as you can (aside from the windows used in this
    procedure of course) and in general try to make your system as "idle" as
    possible.
 
-11. Hit "Start" and wait for the "Time:" to start counting.
+6. Open a command line prompt as Administrator. Navigate to the folder where you
+   downloaded the profiles, then run the following command:
 
-12. Immediately start WindowMonitor (preferably as Administrator) and keep it
+```
+wpr.exe -start GeneralProfile.verbose -start RudeWindowFixer.wprp!RudeWindowFixer.verbose -start WindowInvestigator.wprp!WindowInvestigator.verbose -start WindowManagementLogging.wprp!WindowManagementLogging.verbose
+```
+
+7. In the same command line prompt, prepare, but do not run, the following
+   command: `wpr.exe -marker mark`.
+
+8.  Immediately start WindowMonitor (preferably as Administrator) and keep it
     running.
 
-13. Immediately after WindowMonitor has started, start RudeWindowFixer.
+9.  Optional: it is sometimes useful to also run a dedicated WindowMonitor
+    instance for the taskbar window in order to provide higher timing resolution
+    for events affecting the taskbar. To do this:
+    - In the WindowMonitor text output, note the `HWND` of the window that has
+      `Class name: "Shell_TrayWnd"`. Then, in a separate command line prompt
+      running as Administrator, run a separate instance of WindowMonitor with
+      that HWND as parameter. For example: `WindowInvestigator_WindowMonitor.exe
+      0xAB1234`. Keep *both* WindowMonitor instances running.
 
-14. Try to reproduce the problem as quickly as you can.
+10. Immediately after WindowMonitor has started, start RudeWindowFixer.
+
+11. Try to reproduce the problem as quickly as you can.
     - The reason why speed is important is because traces get *very* large,
       *very* quickly - they grow at a rate of about 10 MB/s, so you can easily
       end up with a multi-gigabyte trace after just a few minutes. This makes
@@ -64,28 +67,22 @@ cause of the issue.
       overwrite old ones. The trace size stays constant after that point. Your
       computer might run slightly slower while tracing is taking place.
 
-15. As soon as you notice the problem occurring, *immediately* hit
-    Ctrl+Alt+Win+X, then immediately hit Enter - do not waste time entering a
-    label.
+12. As soon as you notice the problem occurring, *immediately* run the `wpr.exe
+    -marker mark` command you prepared.
     - This will add a marker event to help figure out when the issue occurred
       while analysing the trace. Investigation will be made easier if the marker
       is as close as possible to the time the problem occurs.
 
-16. In the Windows Performance Recorder, click "Save", then "Save" again. Wait
-    for the save operation to complete. Meanwhile, you can close WindowMonitor.
+13. Run: `wpr.exe -stop rude.etl` to stop and save the trace.
     - Note that saving the trace can take some time and typically stays at 100%
-      for a while. The save is only complete when you see the following screen:
+      for a while.
 
-      ![wpr](wpr-done.png)
-
-17. Click "Open Folder".
-
-18. Using any compression tool (e.g. 7-Zip), compress the resulting `.etl` file
-    and associated `.etl.NGENPDB` folder. 
+14. Using any compression tool (e.g. 7-Zip), compress the resulting `rude.etl`
+    file and associated `rude.etl.NGENPDB` folder. 
     - Trace files are very large, but thankfully they are extremely
       compressible; a ~20x compression ratio is typical.
 
-19. Send the resulting archive to the person in charge of analysis. You might
+15. Send the resulting archive to the person in charge of analysis. You might
     want to use a file sharing service.
     - **Be aware that traces capture almost everything that's going on in your
       entire system, including potentially private information such as file
