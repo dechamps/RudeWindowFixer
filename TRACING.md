@@ -23,10 +23,11 @@ cause of the issue.
 3. Make sure you have the latest [release][RudeWindowFixerReleases] of
    RudeWindowFixer. Be prepared to start it, but do not do it yet.
 
-4. Download the following 3 profiles (use "Save As..."):
+4. Download the following profiles (use "Save As..."):
    - [RudeWindowFixer profile][]
    - [WindowInvestigator profile][]
    - [WindowManagementLogging profile][]
+   - [ShellCore profile][]
 
 5. Close as many windows as you can (aside from the windows used in this
    procedure of course) and in general try to make your system as "idle" as
@@ -36,7 +37,7 @@ cause of the issue.
    downloaded the profiles, then run the following command:
 
 ```
-wpr.exe -start GeneralProfile.verbose -start RudeWindowFixer.wprp!RudeWindowFixer.verbose -start WindowInvestigator.wprp!WindowInvestigator.verbose -start WindowManagementLogging.wprp!WindowManagementLogging.verbose
+wpr.exe -start GeneralProfile.verbose -start RudeWindowFixer.wprp!RudeWindowFixer.verbose -start WindowInvestigator.wprp!WindowInvestigator.verbose -start WindowManagementLogging.wprp!WindowManagementLogging.verbose -start ShellCore.wprp!ShellCore.verbose
 ```
 
 7. In the same command line prompt, prepare, but do not run, the following
@@ -98,6 +99,7 @@ repeat this procedure to get it started again.
 [record]: https://docs.microsoft.com/en-us/windows-hardware/test/wpt/windows-performance-recorder
 [RudeWindowFixer profile]: https://raw.githubusercontent.com/dechamps/RudeWindowFixer/master/RudeWindowFixer.wprp
 [RudeWindowFixerReleases]: https://github.com/dechamps/RudeWindowFixer/releases
+[ShellCore profile]: https://raw.githubusercontent.com/dechamps/WindowInvestigator/master/ShellCore.wprp
 [WindowInvestigator profile]: https://raw.githubusercontent.com/dechamps/WindowInvestigator/master/WindowInvestigator.wprp
 [WindowManagementLogging profile]: https://raw.githubusercontent.com/dechamps/WindowInvestigator/master/WindowManagementLogging.wprp
 [traces]: https://docs.microsoft.com/en-us/windows/win32/etw/about-event-tracing
