@@ -71,6 +71,9 @@ top of.
   - At first glance this bug seems completely unrelated to the other issues
     RudeWindowFixer is fixing (see below) - in fact it doesn't seem to involve
     the Rude Window Manager at all.
+- RudeWindowFixer currently does not address the [problem][issue4] of an app
+  being treated as full screen if its dimensions exceed those of the monitor,
+  leading the taskbar to drop behind it.
 
 ## The problems in detail
 
@@ -535,6 +538,7 @@ There are no dependencies besides the Windows SDK.
 [hooks]: https://docs.microsoft.com/en-us/windows/win32/winmsg/hooks
 [issue2]: https://github.com/dechamps/RudeWindowFixer/issues/2
 [issue3]: https://github.com/dechamps/RudeWindowFixer/issues/3
+[issue4]: https://github.com/dechamps/RudeWindowFixer/issues/4
 [make changes]: https://devblogs.microsoft.com/oldnewthing/20080116-00/?p=23803
 [KB5011493]: https://support.microsoft.com/en-gb/topic/march-8-2022-kb5011493-os-build-22000-556-8f77cda3-9d4b-4b85-b6a4-34d5e3c98434
 [`MapWindowPoints()`]: https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-mapwindowpoints
