@@ -52,6 +52,26 @@ practice. If you've seen it happen, do [file an issue][] and make sure to
 mention the name of the full screen application the taskbar is being shown on
 top of.
 
+## Specific known issues that RudeWindowFixer does NOT fix
+
+- In [issue #3][issue3], it was discovered that Microsoft introduced a
+  regression in Windows 11 build 22000.556 ([KB5011493][]). The bug is not
+  present in build 22000.493.
+  - One known reproducer for this bug is:
+    1. Open the Start Menu.
+    2. Switch to any window using a taskbar window button.
+    3. Click anywhere *at the exact moment* the taskbar finishes its hiding
+       animation (assuming it's set to autohide).
+       - The timing is somewhat tight so this might require a few attempts.
+  - This is likely the issue that this [Feedback hub
+    entry](https://aka.ms/AAg7dw5) is about.
+  - Windows Insider Dev build 22579.1 does not seem to have this issue, so this
+    is likely a bug that Microsoft is aware of and a fix is being rolled out.
+    - For this reason that are no plans to work around it in RudeWindowFixer.
+  - At first glance this bug seems completely unrelated to the other issues
+    RudeWindowFixer is fixing (see below) - in fact it doesn't seem to involve
+    the Rude Window Manager at all.
+
 ## The problems in detail
 
 _**Disclaimer:** The following information was gathered through careful
@@ -514,7 +534,9 @@ There are no dependencies besides the Windows SDK.
 [GitHub releases page]: https://github.com/dechamps/RudeWindowFixer/releases
 [hooks]: https://docs.microsoft.com/en-us/windows/win32/winmsg/hooks
 [issue2]: https://github.com/dechamps/RudeWindowFixer/issues/2
+[issue3]: https://github.com/dechamps/RudeWindowFixer/issues/3
 [make changes]: https://devblogs.microsoft.com/oldnewthing/20080116-00/?p=23803
+[KB5011493]: https://support.microsoft.com/en-gb/topic/march-8-2022-kb5011493-os-build-22000-556-8f77cda3-9d4b-4b85-b6a4-34d5e3c98434
 [`MapWindowPoints()`]: https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-mapwindowpoints
 [Microsoft bug report]: https://aka.ms/AAfmyzk
 [layered window]: https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#layered-windows
