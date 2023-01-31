@@ -56,7 +56,8 @@ top of.
 
 - In [issue #3][issue3], it was discovered that Microsoft introduced a
   regression in Windows 11 build 22000.556 ([KB5011493][]). The bug is not
-  present in build 22000.493.
+  present in build 22000.493. It appears that Microsoft has fixed it with the
+  22H2 update, around build 22621.1105.
   - One known reproducer for this bug is:
     1. Open the Start Menu.
     2. Switch to any window using a taskbar window button.
@@ -65,12 +66,9 @@ top of.
        - The timing is somewhat tight so this might require a few attempts.
   - This is likely the issue that this [Feedback hub
     entry](https://aka.ms/AAg7dw5) is about.
-  - Windows Insider Dev build 22579.1 does not seem to have this issue, so this
-    is likely a bug that Microsoft is aware of and a fix is being rolled out.
-    - For this reason that are no plans to work around it in RudeWindowFixer.
-  - At first glance this bug seems completely unrelated to the other issues
-    RudeWindowFixer is fixing (see below) - in fact it doesn't seem to involve
-    the Rude Window Manager at all.
+  - This bug seems is completely unrelated to the other issues RudeWindowFixer
+    is fixing (see below) - in fact it doesn't seem to involve the Rude Window
+    Manager at all.
 - RudeWindowFixer currently does not address the [problem][issue4] of an app
   being treated as full screen if its dimensions exceed those of the monitor,
   leading the taskbar to drop behind it.
